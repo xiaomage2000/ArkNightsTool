@@ -216,7 +216,7 @@ public class Main {
 					.addComponent(startButton)
 					.addGap(63)
 					.addComponent(stopButton)
-					.addPreferredGap(ComponentPlacement.RELATED, 65, Short.MAX_VALUE)
+					.addPreferredGap(ComponentPlacement.RELATED, 66, Short.MAX_VALUE)
 					.addComponent(exitButton)
 					.addGap(63))
 		);
@@ -436,13 +436,14 @@ public class Main {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			logTextArea.setText("===任务开始===\n");
+			logTextArea.setText("===Version 2021.9.20===\n");
+			logTextArea.setText(logTextArea.getText()+"===任务开始===\n");
 			logTextArea.setCaretPosition(logTextArea.getText().length());
 			for(int i=1;i<=count;i++) {
 				logTextArea.setText(logTextArea.getText()+"===开始执行第"+ i +"次任务===\n");
 				logTextArea.setCaretPosition(logTextArea.getText().length());
-				int _start1_1 = start1_1+random.nextInt(150);
-				int _start1_2 = start1_2+random.nextInt(30);
+				int _start1_1 = start1_1+random.nextInt(50);
+				int _start1_2 = start1_2+random.nextInt(15);
 				robot.mouseMove(_start1_1,_start1_2);
 				robot.mouseMove(_start1_1,_start1_2);
 				robot.mouseMove(_start1_1,_start1_2);
@@ -453,9 +454,9 @@ public class Main {
 				robot.mouseRelease(InputEvent.BUTTON1_MASK);
 				logTextArea.setText(logTextArea.getText()+"开始行动1\n");
 				logTextArea.setCaretPosition(logTextArea.getText().length());
-				robot.delay(2000+random.nextInt(500));
-				int _start2_1 = start2_1+random.nextInt(75);
-				int _start2_2 = start2_2+random.nextInt(150);
+				robot.delay(5000+random.nextInt(500));
+				int _start2_1 = start2_1+random.nextInt(50);
+				int _start2_2 = start2_2+random.nextInt(100);
 				robot.mouseMove(_start2_1,_start2_2);
 				robot.mouseMove(_start2_1,_start2_2);
 				robot.mouseMove(_start2_1,_start2_2);
@@ -475,8 +476,8 @@ public class Main {
 					logTextArea.setCaretPosition(logTextArea.getText().length());
 				}
 				robot.delay(random.nextInt(10000)); 
-				int _over1 = over1+random.nextInt(300);
-				int _over2 = over2+random.nextInt(150);
+				int _over1 = over1+random.nextInt(150);
+				int _over2 = over2+random.nextInt(80);
 				logTextArea.setText(logTextArea.getText()+"结束行动点击位置："+_over1+","+_over2+"\n");
 				logTextArea.setText(logTextArea.getText()+"行动结束\n");
 				logTextArea.setCaretPosition(logTextArea.getText().length());
@@ -489,7 +490,7 @@ public class Main {
 				logTextArea.setText(logTextArea.getText()+"回到选关界面\n");
 				logTextArea.setText(logTextArea.getText()+"===第"+ i +"次任务执行完毕===\n");
 				logTextArea.setCaretPosition(logTextArea.getText().length());
-				robot.delay(6000+random.nextInt(3000)); 
+				robot.delay(8000+random.nextInt(2000)); 
 			}
 			logTextArea.setText(logTextArea.getText()+"=====所有任务均已执行完毕=====\n");
 			logTextArea.setCaretPosition(logTextArea.getText().length());
