@@ -5,7 +5,6 @@ import java.awt.EventQueue;
 import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.Robot;
-
 import javax.swing.JFrame;
 import java.awt.Toolkit;
 import javax.swing.GroupLayout;
@@ -25,14 +24,12 @@ import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.Random;
 
 public class Main {
-
+	// 游戏版本
+	public static final String VERSION = "2021.10.05";
 	private JFrame frmArknightstool;
 	private JTextField startTextField_1_1;
 	private JTextField startTextField_1_2;
@@ -46,6 +43,12 @@ public class Main {
 	private JTextField mousePositionTextField_1;
 	private JTextField mousePositionTextField_2;
 	private JTextArea logTextArea;
+//	模拟点击的进程
+	private Start thread;
+//	日志内容
+	private String logData = "";
+//	用户输入数据
+	private int[] inputData = new int[10];
 
 	/**
 	 * Launch the application.
@@ -76,6 +79,7 @@ public class Main {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
+		// 循环,获取当前鼠标位置并显示
 		while (true) {
 			Point point = MouseInfo.getPointerInfo().getLocation();
 			frame.mousePositionTextField_1.setText(Double.toString(point.getX()));
@@ -159,8 +163,9 @@ public class Main {
 		startButton.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent arg0) {
-				Start t = new Start();
-				t.start();
+
+//				
+				startOperate();
 			}
 		});
 		startButton.setToolTipText("开始行动！");
@@ -170,8 +175,12 @@ public class Main {
 //			@SuppressWarnings({ "deprecation", "unused" })
 			@Override
 			public void mouseClicked(MouseEvent arg0) {
-//					t.stop();
-				logTextArea.setText(logTextArea.getText() + "===当前功能正在开发===\n");
+				if (thread != null) {
+					thread.kill();
+				} else {
+					logAppend("没有行动在执行");
+				}
+
 			}
 		});
 		stopButton.setToolTipText("有内鬼终止行动");
@@ -190,16 +199,17 @@ public class Main {
 		exitButton.setToolTipText("退出程序");
 		GroupLayout gl_controlPanel = new GroupLayout(controlPanel);
 		gl_controlPanel.setHorizontalGroup(gl_controlPanel.createParallelGroup(Alignment.LEADING)
-				.addGroup(gl_controlPanel.createSequentialGroup()
+				.addGroup(gl_controlPanel.createSequentialGroup().addGap(26)
 						.addGroup(gl_controlPanel.createParallelGroup(Alignment.LEADING)
-								.addGroup(gl_controlPanel.createSequentialGroup().addGap(36).addComponent(startButton))
-								.addGroup(gl_controlPanel.createSequentialGroup().addGap(45).addComponent(exitButton))
-								.addGroup(gl_controlPanel.createSequentialGroup().addGap(26).addComponent(stopButton)))
-						.addContainerGap(31, Short.MAX_VALUE)));
+								.addComponent(exitButton, GroupLayout.DEFAULT_SIZE, 117, Short.MAX_VALUE)
+								.addComponent(stopButton, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE,
+										Short.MAX_VALUE)
+								.addComponent(startButton, GroupLayout.DEFAULT_SIZE, 117, Short.MAX_VALUE))
+						.addGap(31)));
 		gl_controlPanel.setVerticalGroup(gl_controlPanel.createParallelGroup(Alignment.LEADING)
 				.addGroup(gl_controlPanel.createSequentialGroup().addGap(50).addComponent(startButton).addGap(71)
-						.addComponent(stopButton).addPreferredGap(ComponentPlacement.RELATED, 73, Short.MAX_VALUE)
-						.addComponent(exitButton).addGap(62)));
+						.addComponent(stopButton).addGap(73).addComponent(exitButton)
+						.addContainerGap(62, Short.MAX_VALUE)));
 		controlPanel.setLayout(gl_controlPanel);
 
 		JLabel startLabel_1 = new JLabel("开始行动1按钮位置");
@@ -297,7 +307,7 @@ public class Main {
 														.addGap(18).addComponent(startTextField_2_2,
 																GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
 																GroupLayout.PREFERRED_SIZE)))))
-						.addContainerGap(74, Short.MAX_VALUE)));
+						.addContainerGap(144, Short.MAX_VALUE)));
 		gl_initPanel.setVerticalGroup(gl_initPanel.createParallelGroup(Alignment.LEADING).addGroup(gl_initPanel
 				.createSequentialGroup().addGap(21)
 				.addGroup(gl_initPanel.createParallelGroup(Alignment.BASELINE).addComponent(startLabel_1)
@@ -335,155 +345,240 @@ public class Main {
 								GroupLayout.PREFERRED_SIZE)
 						.addComponent(mousePositionTextField_2, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE,
 								GroupLayout.PREFERRED_SIZE))
-				.addContainerGap(GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)));
+				.addContainerGap(49, Short.MAX_VALUE)));
 		initPanel.setLayout(gl_initPanel);
 		frmArknightstool.getContentPane().setLayout(groupLayout);
 	}
 
+	/**
+	 * 模拟鼠标点击进程类
+	 * 
+	 *
+	 */
 	class Start extends Thread {
+		/**
+		 * orderStatus 进程状态 指令标记,true 进程继续执行,false 进程终止 random 产生随机数值,用于 点击位置随机位移 robot
+		 * 模拟鼠标点击 count 执行游戏次数 cycle 游戏运行周期 datas 整型数组, 依次为 三个坐标值(3*2),
+		 * 当前理智,单次理智消耗,游戏运行周期,游戏运行次数
+		 */
+		private boolean orderStatus = false;
+		private Random random = new Random();
+		private Robot robot = null;
+		int sanity;
+		int count;
+		int cycle_time;
+		int[] datas;
+
+		/**
+		 * 传入用户输入数据
+		 * 
+		 * @param args
+		 */
+		public Start(int[] args) {
+			datas = args;
+			this.count = args[9];
+			this.cycle_time = args[8];
+		}
+
 		public void run() {
-			Robot robot = null;
+			// 允许进程执行
+			this.orderStatus = true;
+
 			try {
+				// 实例化 Robot 
 				robot = new Robot();
 			} catch (AWTException e) {
 				e.printStackTrace();
-			}
-			Random random = new Random();
-			int count = 0;
-			try {
-				count = (Integer.parseInt(sanityTextField.getText()))
-						/ (Integer.parseInt(onceSanityTextField.getText()));
-			} catch (Exception e) {
-				e.printStackTrace();
-				logTextArea.setText(logTextArea.getText() + "请输入正确的理智数值！\n");
-			}
-			int start1_1 = 0;
-			try {
-				start1_1 = Integer.parseInt(startTextField_1_1.getText());
-			} catch (Exception e) {
-				e.printStackTrace();
-				logTextArea.setText(logTextArea.getText() + "请输入正确的位置！\n");
-			}
-			int start1_2 = 0;
-			try {
-				start1_2 = Integer.parseInt(startTextField_1_2.getText());
-			} catch (Exception e) {
-				e.printStackTrace();
-				logTextArea.setText(logTextArea.getText() + "请输入正确的位置！\n");
-			}
-			int start2_1 = 0;
-			try {
-				start2_1 = Integer.parseInt(startTextField_2_1.getText());
-			} catch (Exception e) {
-				e.printStackTrace();
-				logTextArea.setText(logTextArea.getText() + "请输入正确的位置！\n");
-			}
-			int start2_2 = 0;
-			try {
-				start2_2 = Integer.parseInt(startTextField_2_2.getText());
-			} catch (Exception e) {
-				e.printStackTrace();
-				logTextArea.setText(logTextArea.getText() + "请输入正确的位置！\n");
-			}
-			int over1 = 0;
-			try {
-				over1 = Integer.parseInt(overTextField_1.getText());
-			} catch (Exception e) {
-				e.printStackTrace();
-				logTextArea.setText(logTextArea.getText() + "请输入正确的位置！\n");
-			}
-			int over2 = 0;
-			try {
-				over2 = Integer.parseInt(overTextField_2.getText());
-			} catch (Exception e) {
-				e.printStackTrace();
-				logTextArea.setText(logTextArea.getText() + "请输入正确的位置！\n");
-			}
-			int one_time = 999;
-			try {
-				one_time = Integer.parseInt(timeTextField.getText());
-			} catch (Exception e) {
-				e.printStackTrace();
-				logTextArea.setText(logTextArea.getText() + "请输入正确的通关时间\n");
-			}
-			logTextArea.setText(logTextArea.getText() + "Rojer！一共要执行" + count + "次任务 任务期间请不要做其他事情\n");
-			try {
-				BufferedWriter out = new BufferedWriter(new FileWriter("ArkNightsData"));
-				out.write(startTextField_1_1.getText() + "\n");
-				out.write(startTextField_1_2.getText() + "\n");
-				out.write(startTextField_2_1.getText() + "\n");
-				out.write(startTextField_2_2.getText() + "\n");
-				out.write(overTextField_1.getText() + "\n");
-				out.write(overTextField_2.getText() + "\n");
-				out.write(onceSanityTextField.getText() + "\n");
-				out.write(timeTextField.getText() + "\n");
-				out.close();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			logTextArea.setText("===Version 2021.10.04===\n");
-			logTextArea.setText(logTextArea.getText() + "===任务开始===\n");
-			logTextArea.setCaretPosition(logTextArea.getText().length());
-			for (int i = 1; i <= count; i++) {
-				logTextArea.setText(logTextArea.getText() + "===开始执行第" + i + "次任务===\n");
+				logTextArea.setText(logTextArea.getText() + "发生异常 程序终止\n");
 				logTextArea.setCaretPosition(logTextArea.getText().length());
-				int _start1_1 = start1_1 + random.nextInt(50);
-				int _start1_2 = start1_2 + random.nextInt(15);
-				robot.mouseMove(_start1_1, _start1_2);
-				robot.mouseMove(_start1_1, _start1_2);
-				robot.mouseMove(_start1_1, _start1_2);
-				logTextArea.setText(logTextArea.getText() + "开始行动1点击位置：" + _start1_1 + "," + _start1_2 + "\n");
-				logTextArea.setCaretPosition(logTextArea.getText().length());
-				robot.mousePress(InputEvent.BUTTON1_MASK);
-				robot.delay(150 + random.nextInt(10));
-				robot.mouseRelease(InputEvent.BUTTON1_MASK);
-				logTextArea.setText(logTextArea.getText() + "开始行动1\n");
-				logTextArea.setCaretPosition(logTextArea.getText().length());
+				//				发生异常,禁止进程继续执行
+				this.orderStatus = false;
+				return;
+			}
+
+			logAppend(String.format("===Version %s===", VERSION));
+			logAppend("===\t任务开始\t ===");
+			logAppend(String.format("当前 %d 理智,每次消耗 %d 理智,可以执行  %d 次", this.datas[6], this.datas[7], this.datas[9]));
+			int i = 0;
+
+			for (i = 1; this.orderStatus && i <= count; i++) {
+
+				logAppend("===开始执行第" + i + "次任务===");
+				// 点击第一个坐标点
+				this.moveAndPressMouse(this.datas[0], this.datas[1]);
+
 				robot.delay(5000 + random.nextInt(500));
-				int _start2_1 = start2_1 + random.nextInt(50);
-				int _start2_2 = start2_2 + random.nextInt(100);
-				robot.mouseMove(_start2_1, _start2_2);
-				robot.mouseMove(_start2_1, _start2_2);
-				robot.mouseMove(_start2_1, _start2_2);
-				logTextArea.setText(logTextArea.getText() + "开始行动2点击位置：" + _start2_1 + "," + _start2_2 + "\n");
-				logTextArea.setCaretPosition(logTextArea.getText().length());
-				robot.mousePress(InputEvent.BUTTON1_MASK);
-				robot.delay(150 + random.nextInt(10 + random.nextInt(10)));
-				robot.mouseRelease(InputEvent.BUTTON1_MASK);
-				logTextArea.setText(logTextArea.getText() + "开始行动2，行动开始\n");
-				logTextArea.setCaretPosition(logTextArea.getText().length());
-				int _one_time = one_time;
-				while (_one_time > 0) {
-					if (_one_time > 60) {
-						robot.delay(60000);
-						_one_time -= 60;
-						logTextArea.setText(logTextArea.getText() + "行动仍然在进行中...\n");
-						logTextArea.setCaretPosition(logTextArea.getText().length());
-					} else {
-						robot.delay(_one_time * 1000);
-						_one_time = 0;
+				// 点击第二个坐标点
+				this.moveAndPressMouse(this.datas[2], this.datas[3]);
+
+				// 等待游戏运行 
+				{
+					int _one_time = cycle_time;
+					String current_log = logTextArea.getText();
+
+					while (_one_time > 0) {
+
+						robot.delay(1000);
+						_one_time--;
+						String log_str = String.format("等待游戏运行..., 剩余时间  %d 秒", _one_time);
+						logLive(log_str);
+
 					}
+
 				}
+
 				robot.delay(random.nextInt(10000));
-				int _over1 = over1 + random.nextInt(150);
-				int _over2 = over2 + random.nextInt(80);
-				logTextArea.setText(logTextArea.getText() + "结束行动点击位置：" + _over1 + "," + _over2 + "\n");
-				logTextArea.setText(logTextArea.getText() + "行动结束\n");
-				logTextArea.setCaretPosition(logTextArea.getText().length());
-				robot.mouseMove(_over1, _over2);
-				robot.mouseMove(_over1, _over2);
-				robot.mouseMove(_over1, _over2);
-				robot.mousePress(InputEvent.BUTTON1_MASK);
-				robot.delay(150 + random.nextInt(10));
-				robot.mouseRelease(InputEvent.BUTTON1_MASK);
-				logTextArea.setText(logTextArea.getText() + "回到选关界面\n");
-				logTextArea.setText(logTextArea.getText() + "===第" + i + "次任务执行完毕===\n");
-				logTextArea.setCaretPosition(logTextArea.getText().length());
+				// 点击第三个坐标点
+				this.moveAndPressMouse(this.datas[4], this.datas[5]);
+
+				logAppend("回到选关界面");
+				sanity = (count - i) * this.datas[7];
+				setSanity("" + sanity);
+
+				logAppend(String.format("===第  %d 次任务执行完毕,剩余%d理智 ===", i, sanity));
+
 				robot.delay(8000 + random.nextInt(2000));
 			}
-			logTextArea.setText(logTextArea.getText() + "=====所有任务均已执行完毕=====\n");
-			logTextArea.setCaretPosition(logTextArea.getText().length());
+			if (!this.orderStatus) {
+				logAppend("*****操作暂停*****");
+			}
+
 		}
-	};
+
+		public void kill() {
+			this.orderStatus = false;
+
+		}
+
+		public void moveAndPressMouse(int a, int b) {
+			int _start1_1 = a + random.nextInt(50);
+			int _start1_2 = b + random.nextInt(15);
+
+			robot.mouseMove(_start1_1, _start1_2);
+			robot.mouseMove(_start1_1, _start1_2);
+			robot.mouseMove(_start1_1, _start1_2);
+
+			robot.mousePress(InputEvent.BUTTON1_MASK);
+			robot.delay(150 + random.nextInt(10));
+			robot.mouseRelease(InputEvent.BUTTON1_MASK);
+			logAppend(String.format("点击坐标: %d , %d ", _start1_1, _start1_2));
+			System.out.println(_start1_1 + "  " + _start1_2);
+		}
+
+	}
+
+	public void startOperate() {
+		if (checkInput()) {
+			
+			try {
+				thread = new Start(inputData);
+				Thread.sleep(1000);
+				thread.start();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				//e.printStackTrace();
+				logAppend("程序异常!!!!!");
+			}
+			
+		}
+
+	}
+	/**
+	 * 检查输入窗口,保存到全局变量
+	 * @return true 全部输入 符合规则
+	 */
+	public boolean checkInput() {
+		boolean result = false;
+		int count = 0;
+		int start1_1 = 0;
+		int start1_2 = 0;
+		int start2_1 = 0;
+		int start2_2 = 0;
+		int over1 = 0;
+		int over2 = 0;
+		int cycle_time = 999;
+
+		int spend_resource = 0;
+		int current_resource = 0;
+		int step = 0;
+
+		String[] warningMessages = { "请输入正确的理智数值！", "请输入正确的位置！", "请输入正确的通关时间" };
+
+		try {
+			current_resource = Integer.parseInt(sanityTextField.getText());
+			spend_resource = Integer.parseInt(onceSanityTextField.getText());
+
+			count = current_resource / spend_resource;
+			step++;
+			start1_1 = Integer.parseInt(startTextField_1_1.getText());
+			start1_2 = Integer.parseInt(startTextField_1_2.getText());
+			start2_1 = Integer.parseInt(startTextField_2_1.getText());
+			start2_2 = Integer.parseInt(startTextField_2_2.getText());
+			over1 = Integer.parseInt(overTextField_1.getText());
+			over2 = Integer.parseInt(overTextField_2.getText());
+
+			step++;
+			cycle_time = Integer.parseInt(timeTextField.getText());
+			result = true;
+		} catch (Exception e) {
+			//	根据 step 标记 打印 提示信息
+			logAppend(warningMessages[step]);
+
+		} finally {
+			// 记录数据
+			if (step == 2 && result) {
+				inputData[0] = start1_1;
+				inputData[1] = start1_2;
+				inputData[2] = start2_1;
+				inputData[3] = start2_2;
+				inputData[4] = over1;
+				inputData[5] = over2;
+				inputData[6] = current_resource;
+				inputData[7] = spend_resource;
+				inputData[8] = cycle_time;
+				inputData[9] = count;
+				for (int i : inputData) {
+					System.out.println(i);
+
+				}
+			}
+
+		}
+
+		return result;
+	}
+	 
+	/**
+	 * 最后端 添加 打印信息 自带换行 保存到全局变量
+	 * @param logStr 要打印的信息
+	 */
+	public void logAppend(String logStr) {
+		logData = logData + logStr + "\n";
+		logTextArea.setText(logData);
+		logTextArea.setCaretPosition(logData.length());
+	}
+	/**
+	 * 打印信息, 不保存到全局变量
+	 * @param logStr
+	 */
+	public void logLive(String logStr) {
+		logTextArea.setText(logData + logStr + "\n");
+		logTextArea.setCaretPosition(logTextArea.getText().length());
+	}
+	/**
+	 * 清楚打印信息
+	 */
+	public void logClear() {
+		logData = "";
+		logTextArea.setText(logData);
+		logTextArea.setCaretPosition(0);
+	}
+	/**
+	 * 设置 当前理智 数值
+	 * @param value
+	 */
+	private void setSanity(String value) {
+		this.sanityTextField.setText(value);
+
+	}
 }
